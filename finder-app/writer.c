@@ -14,7 +14,7 @@ int main(int argc, char const *argv[])
     openlog("Writer", LOG_PID, LOG_USER);
 
     if (argc != 3) {
-        syslog(LOG_ERR, "Invalid Number of Arguments. Expecting 2 arguments, but received %d args", argc - 1);
+        syslog(LOG_ERR, "Invalid Number of Arguments. Expecting 2 arguments, but received %d", argc - 1);
         closelog();
         return 1;
     }
