@@ -1,4 +1,10 @@
 #include "systemcalls.h"
+#include <stdio.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -15,7 +21,12 @@ bool do_system(const char *cmd)
  *  Call the system() function with the command set in the cmd
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
-*/
+*/  
+    int ret = system(cmd);
+
+    if (ret == -1) {
+        return false;
+    }
 
     return true;
 }
@@ -58,9 +69,29 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    pid_t pid = fork();
 
-    va_end(args);
+    if (pid == -1) {
+        return false;
+    }
+    else if (pid == 0) {
+        // we are in the child process
+        execv(command[0], command);
+        exit(EXIT_FAILURE);
+    }
+    else {
+        // we are in the parent process
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {
+            return false;
+        }
 
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -93,7 +124,33 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *
 */
 
-    va_end(args);
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    if (fd == -1) {
+        return false;
+    }
 
-    return true;
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        return false;
+    } else if (pid == 0) {
+        if (dup2(fd, 1) == -1) {
+            perror("dup2");
+            return false;
+        } else {
+            close(fd);
+            execv(command[0], command);
+            exit(-1);
+        }
+        return false;
+    } else {
+        close(fd);
+        int status = -1;
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 }
